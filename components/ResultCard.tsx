@@ -3,12 +3,12 @@ import { useAudioPlayer } from '../hooks/useAudioPlayer';
 import { SpeakerWaveIcon, SpeakerXMarkIcon, DownloadIcon, ChevronDownIcon } from './Icons';
 
 interface ResultCardProps {
-  description: string;
+  commentary: string;
   beforeImage: string; // base64 encoded image data
   afterImage: string;  // base64 encoded image data
 }
 
-export const ResultCard: React.FC<ResultCardProps> = ({ description, beforeImage, afterImage }) => {
+export const ResultCard: React.FC<ResultCardProps> = ({ commentary, beforeImage, afterImage }) => {
   const { togglePlay, isPlaying } = useAudioPlayer();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -26,7 +26,7 @@ export const ResultCard: React.FC<ResultCardProps> = ({ description, beforeImage
   }, []);
 
   const handleNarration = () => {
-    togglePlay(description);
+    togglePlay(commentary);
   };
 
   const downloadImage = (href: string, filename: string) => {
@@ -133,7 +133,7 @@ export const ResultCard: React.FC<ResultCardProps> = ({ description, beforeImage
       </div>
       <div className="p-4 rounded-b-xl">
         <div className="flex items-start justify-between gap-4">
-          <p className="text-gray-300 text-sm flex-grow">{description}</p>
+          <p className="text-gray-300 text-sm flex-grow">{commentary}</p>
           <div className="flex-shrink-0 flex items-center gap-2">
             
             <div className="relative" ref={dropdownRef}>

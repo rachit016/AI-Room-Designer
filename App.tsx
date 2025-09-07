@@ -4,11 +4,12 @@ import { DecorImageManager } from './components/DecorImageManager';
 import { ResultCard } from './components/ResultCard';
 import { Spinner } from './components/Spinner';
 import { SparklesIcon, ExclamationTriangleIcon } from './components/Icons';
-import { generateDecorIdeas, enhanceImage, DesignIdea } from './services/geminiService';
+import { generateDecorIdeas, enhanceImage, generateCommentary } from './services/geminiService';
 
 interface Result {
   enhancedBeforeImage: string; // base64
-  idea: DesignIdea;
+  afterImage: string; // base64
+  commentary: string;
 }
 
 const promptSuggestions = [
@@ -47,13 +48,19 @@ const App: React.FC = () => {
 
     try {
       const generationPromises = roomImages.map(async (roomImage) => {
-        // First, enhance the "before" image for better comparison quality
+        // Step 1: Enhance the "before" image for better comparison quality
         const enhancedBeforeImage = await enhanceImage(roomImage);
-        // Then, generate the new design using the original image
-        const idea = await generateDecorIdeas(roomImage, decorImages, stylePrompt);
+        
+        // Step 2: Generate the new design using the original image
+        const afterImage = await generateDecorIdeas(roomImage, decorImages, stylePrompt);
+
+        // Step 3: Generate the comparative commentary
+        const commentary = await generateCommentary(roomImage, afterImage, stylePrompt);
+        
         return {
           enhancedBeforeImage,
-          idea,
+          afterImage,
+          commentary,
         };
       });
       
@@ -108,7 +115,7 @@ const App: React.FC = () => {
                 value={stylePrompt}
                 onChange={(e) => setStylePrompt(e.target.value)}
               />
-              <div className="mt-3">
+              <div className="mt-4">
                 <p className="text-xs font-medium text-gray-400 mb-2">Need inspiration? Try one of these:</p>
                 <div className="flex flex-wrap gap-2">
                   {promptSuggestions.map((suggestion) => (
@@ -122,6 +129,16 @@ const App: React.FC = () => {
                   ))}
                 </div>
               </div>
+
+              <div className="mt-4 p-3 bg-white/5 border border-white/10 rounded-lg">
+                <h4 className="text-xs font-bold text-cyan-300">Pro Prompting Tips</h4>
+                <ul className="list-disc list-inside text-xs text-gray-400 mt-1 space-y-1">
+                  <li><span className="font-semibold">Be descriptive:</span> "A cozy reading nook" vs "add a chair".</li>
+                  <li><span className="font-semibold">Mention mood & style:</span> Use words like "serene", "energetic", "minimalist".</li>
+                  <li><span className="font-semibold">Specify colors & materials:</span> "Dark walnut table", "light blue linen curtains".</li>
+                </ul>
+              </div>
+
             </div>
           </div>
           
@@ -164,9 +181,9 @@ const App: React.FC = () => {
                  {results.map((result, index) => (
                    <ResultCard 
                     key={index} 
-                    description={result.idea.description} 
+                    commentary={result.commentary} 
                     beforeImage={result.enhancedBeforeImage}
-                    afterImage={result.idea.image} />
+                    afterImage={result.afterImage} />
                  ))}
                </div>
             </div>

@@ -26,10 +26,15 @@ const fileToGenerativePart = async (file: File) => {
   };
 };
 
-export interface DesignIdea {
-  description: string;
-  image: string; // base64 string
-}
+// Helper to convert a base64 string to a GoogleGenerativeAI.Part object.
+const base64ToGenerativePart = (base64: string, mimeType: string) => {
+  return {
+    inlineData: {
+      data: base64,
+      mimeType,
+    },
+  };
+};
 
 export const enhanceImage = async (imageFile: File): Promise<string> => {
   const model = 'gemini-2.5-flash-image-preview';
@@ -76,7 +81,7 @@ export const generateDecorIdeas = async (
   roomImage: File,
   decorImages: File[],
   stylePrompt: string
-): Promise<DesignIdea> => {
+): Promise<string> => {
   // Fix: Use the correct model for image editing/composition as per guidelines.
   const model = 'gemini-2.5-flash-image-preview';
 
@@ -84,7 +89,7 @@ export const generateDecorIdeas = async (
   const decorImageParts = await Promise.all(decorImages.map(fileToGenerativePart));
 
   const prompt = `
-    You are an expert interior designer specializing in photo-realistic virtual staging.
+    You are an expert interior designer AI specializing in photo-realistic virtual staging.
     Your task is to integrate the provided decor items into the room image, following the user's style prompt precisely.
 
     **Crucial Rule: You MUST NOT alter the room's fundamental structure.** 
@@ -95,9 +100,7 @@ export const generateDecorIdeas = async (
 
     Based on the user's style prompt of "${stylePrompt}", realistically place the provided decor items into the room. 
     
-    Generate the new image reflecting these changes.
-    Finally, provide a short, inspiring description of your design choices, explaining how the new items enhance the room's style.
-    Output both the new image and the text description.
+    **Output ONLY the new image.** Do not output any text or description.
   `;
 
   const contents = {
@@ -120,28 +123,24 @@ export const generateDecorIdeas = async (
           responseModalities: [Modality.IMAGE, Modality.TEXT],
       },
     });
-
-    if (!response.candidates || response.candidates.length === 0) {
-      throw new Error("No response from the model.");
-    }
-
-    const candidate = response.candidates[0];
-    let description = "Here is your generated design!";
+    
+    const candidate = response.candidates?.[0];
     let image = "";
 
-    for (const part of candidate.content.parts) {
-      if (part.text) {
-        description = part.text;
-      } else if (part.inlineData) {
-        image = part.inlineData.data;
-      }
+    if (candidate) {
+        for (const part of candidate.content.parts) {
+            if (part.inlineData) {
+                image = part.inlineData.data;
+                break; // Found the image, no need to continue
+            }
+        }
     }
 
     if (!image) {
       throw new Error("The model did not return an image. Please try refining your prompt.");
     }
     
-    return { description, image };
+    return image;
 
   } catch (error) {
     console.error("Error generating decor ideas:", error);
@@ -150,4 +149,47 @@ export const generateDecorIdeas = async (
     }
     throw new Error("An unknown error occurred while generating the design.");
   }
+};
+
+export const generateCommentary = async (
+  originalImage: File,
+  generatedImage: string, // base64 string
+  stylePrompt: string
+): Promise<string> => {
+    const model = 'gemini-2.5-flash';
+    const originalImagePart = await fileToGenerativePart(originalImage);
+    const generatedImagePart = base64ToGenerativePart(generatedImage, 'image/png'); 
+    
+    const prompt = `
+      You are an expert interior design commentator.
+      You will be given a "before" image of a room and an "after" image with new decor.
+      The user's style goal was: "${stylePrompt}".
+
+      Your task is to provide a brief, cheerful audio commentary (around 3-4 sentences) that compares the two images.
+      - **Start** by acknowledging the transformation.
+      - **Highlight** 2-3 specific, positive changes (e.g., "Notice how the new velvet armchair adds a touch of luxury..." or "The addition of plants brings so much life and color to the space.").
+      - **Conclude** with a summary of the new mood or feeling of the room.
+      - Keep the tone inspiring and friendly. Do not use markdown or formatting.
+    `;
+    
+    try {
+        const response = await ai.models.generateContent({
+            model,
+            contents: {
+                parts: [
+                    {text: "Before image:"},
+                    originalImagePart,
+                    {text: "After image:"},
+                    generatedImagePart,
+                    {text: prompt}
+                ]
+            }
+        });
+        
+        return response.text;
+        
+    } catch (error) {
+        console.error("Error generating commentary:", error);
+        return "Here is your beautiful new room design, created just for you!"; // Fallback commentary
+    }
 };

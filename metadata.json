@@ -1,5 +1,5 @@
 {
-  "name": "Copy of Interactive AR Home Decor Preview",
+  "name": "Interactive AI Home Decor Preview",
   "description": "An application that allows users to visualize furniture or artworks in their own rooms using image blending powered by Gemini. It also features audio commentary via ElevenLabs integration.",
   "requestFramePermissions": []
 }
